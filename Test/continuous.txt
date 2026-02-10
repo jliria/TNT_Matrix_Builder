@@ -1,0 +1,8 @@
+Leiocephalus carinatus	53.00	?	?	?		
+Anolis cristatellus	67.75	3.83	1.99	16.25
+Anolis cybotes	60.67	3.3	1.48	13.33
+Anolis evermanni	61.73	3.48	1.71	19.55
+Anolis occultus	39.5	1.38	0.76	11.5
+Anolis olssoni	37.8	1.99	0.69	11.8
+Anolis pulchellus	45.67	2.18	0.99	12.33
+Anolis coelestinus	72	4.08	2.12	21.14
