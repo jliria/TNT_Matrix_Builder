@@ -1,9 +1,15 @@
 # TNT_Matrix_Builder
+
+<div align="center">
+<img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhEhENEvuyWLIKZ_QziPGKwxQOYWxh7bT8u2Y0v-MMvjORJ1wQHt_-8H6x7z7IGbjyuRCL5BFLjmV2DyJmmw6EFwjI08TH1jFl0G4WyMGmMpYq6qOBhVj5QSyDHNgqtHhnx7182Mg-T2lNjIXkTagXYdlHo4SE7yO2isrnGP3UM0fSt2MoPbSA3DN8LHk6k/w286-h236/Untitled.jpg" width="350" />
+</div>
+
 TNT Matrix Builder is a specialized graphical application designed to streamline the construction of "Total Evidence" matrices for the phylogenetic software TNT (Tree Analysis using New Technologies).
 
 Building complex matrices often requires manual editing of .tnt files to include specific headers (nstates, xread) and block tags (&[dna], &[num], &[cont]). This tool automates the entire process, allowing researchers and students to focus on biological hypotheses rather than syntax debugging.
 
 Key Features:
+
 Multi-Format Support: Automatically detects and parses FASTA (DNA), TPS (2D Landmarks), and tabular data (CSV/TSV/TXT for discrete or continuous characters).
 
 Smart Taxa Merging: Handles disparate datasets using Union or Intersection modes, automatically filling gaps with missing data (?).
