@@ -1,4 +1,4 @@
-# TNT Matrix Builder: A Python Graphical Interface for Total Evidence Phylogenetics
+# TNT Matrix Builder: A Python Graphical Interface for data manipulation for TNT
 
 <div align="left">
   <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhEhENEvuyWLIKZ_QziPGKwxQOYWxh7bT8u2Y0v-MMvjORJ1wQHt_-8H6x7z7IGbjyuRCL5BFLjmV2DyJmmw6EFwjI08TH1jFl0G4WyMGmMpYq6qOBhVj5QSyDHNgqtHhnx7182Mg-T2lNjIXkTagXYdlHo4SE7yO2isrnGP3UM0fSt2MoPbSA3DN8LHk6k/w286-h236/Untitled.jpg" width="250" alt="TNT Matrix Builder Logo" style="border-radius: 8px; margin-bottom: 20px;" />
