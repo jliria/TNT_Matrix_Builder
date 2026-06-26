@@ -38,9 +38,27 @@ Before using `TNT Matrix Builder`, ensure you have installed:
 * **Standard libraries:** `tkinter`, `re`, `math`, `os`, `dataclasses`.
 * **Optional library:** `tkinterdnd2` (to enable the drag-and-drop file feature). You can install it using the command: `pip install tkinterdnd2`.
 
-*Note: There is an executable version available that can be downloaded from the following link: [Insert Link Here]*.
+*Note: There is an executable version available that can be downloaded from the following link: [[TNT_Matrix_Builder.exe](https://www.dropbox.com/scl/fi/3wakmta1x73lc7l7lo23t/TNT_matrix_builder.exe?rlkey=x1bz24c0dh8mnptkque79orfc&st=p9ge06vl&dl=0)]*.
 
 ---
+
+### Repository Structure
+
+The project directory is structured as follows:
+
+```text
+csv2xyd/
+│
+├── Images/                 # GUI screenshots, system diagrams, and graphical assets
+├── TNT_matrix_builder.py   # Core module containing parsing engines and algorithms
+├── Manual/                 # Detailed step-by-step user and technical manual (in Spanish)
+├── Test/                   # Sample data files
+├── README.md               # Main project documentation and quick-start guide
+└── LICENSE                 # MIT License details
+```
+
+---
+
 
 ## 2. Supported Formats
 
@@ -49,7 +67,7 @@ The program automatically detects the nature of the data based on its content:
 * **Tables (`.txt`, `.tsv`, `.csv`):**
   * **Discrete/Numeric:** If the file contains integers or polymorphisms.
   * **Continuous:** Automatically detected by the presence of decimal values.
-* **Morphometrics (TPS):** `.tps` files with 2D landmarks. The program automatically averages the specimens per species.
+* **Landmarks (TPS):** `.tps` files with 2D landmarks. The program automatically averages the specimens per species.
 
 <div align="center">
   <img src="Images/Fig2.png" width="560" alt="Supported Formats Example" style="border-radius: 6px; border: 1px solid #ddd;" />
