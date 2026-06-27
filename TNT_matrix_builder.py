@@ -98,6 +98,146 @@ def parse_float_safe(s: str) -> Optional[float]:
     except Exception:
         return None
 
+
+def classify_tnt_continuous_token(token: str):
+    """
+    Classify one continuous-cell token for TNT export.
+
+    Supported continuous formats in input tables:
+    - simple value: 53.00
+    - value/error or mean/error: 53.00/4.00  -> exported as 53.00/4.00
+    - min-max range: 53.00-54.00
+    - TNT +/- form: 53.00+/-4.00
+    - missing: ?, NA, N/A, empty, -
+
+    Conservative rule for continuous data:
+    negative values are reported as errors and export is blocked.
+    """
+    s = str(token).strip()
+
+    if is_missing(s):
+        return ("missing", None, None)
+
+    number = r"[+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?"
+
+    pm_re = re.fullmatch(rf"({number})\s*\+/-\s*({number})", s)
+    if pm_re:
+        mean = float(pm_re.group(1))
+        err = float(pm_re.group(2))
+        if mean < 0:
+            return ("error", None, "negative mean in +/- continuous value")
+        if err < 0:
+            return ("error", None, "negative error in +/- continuous value")
+        return ("pm", (mean, err), None)
+
+    slash_re = re.fullmatch(rf"({number})\s*/\s*({number})", s)
+    if slash_re:
+        mean = float(slash_re.group(1))
+        err = float(slash_re.group(2))
+        if mean < 0:
+            return ("error", None, "negative mean in slash continuous value")
+        if err < 0:
+            return ("error", None, "negative error in slash continuous value")
+        return ("slash", (mean, err), None)
+
+    range_re = re.fullmatch(rf"({number})\s*-\s*({number})", s)
+    if range_re:
+        lo = float(range_re.group(1))
+        hi = float(range_re.group(2))
+        if lo < 0 or hi < 0:
+            return ("error", None, "negative limit in continuous range")
+        if lo > hi:
+            return ("error", None, "range lower limit is greater than upper limit")
+        return ("range", (lo, hi), None)
+
+    single_re = re.fullmatch(number, s)
+    if single_re:
+        value = float(s)
+        if value < 0:
+            return ("error", None, "negative continuous value")
+        return ("single", value, None)
+
+    return ("error", None, "invalid continuous token")
+
+
+def format_continuous_token_for_tnt(token: str, decimals: int = 6) -> str:
+    """Format continuous cells for TNT, preserving ranges and preserving / intervals."""
+    kind, value, reason = classify_tnt_continuous_token(token)
+
+    if kind == "missing":
+        return "?"
+    if kind == "single":
+        return f"{value:.{decimals}f}"
+    if kind == "range":
+        lo, hi = value
+        return f"{lo:.{decimals}f}-{hi:.{decimals}f}"
+    if kind == "pm":
+        mean, err = value
+        return f"{mean:.{decimals}f}+/-{err:.{decimals}f}"
+    if kind == "slash":
+        mean, err = value
+        return f"{mean:.{decimals}f}/{err:.{decimals}f}"
+
+    return "?"
+
+
+def detect_table_dtype_from_cells(non_missing: List[str]) -> Tuple[str, Dict[str, int]]:
+    """Detect table data type from cell content."""
+    stats = {
+        "single": 0,
+        "range": 0,
+        "slash": 0,
+        "pm": 0,
+        "num_state": 0,
+        "invalid": 0,
+        "total": 0,
+    }
+
+    for v in non_missing[:5000]:
+        stats["total"] += 1
+        kind, value, reason = classify_tnt_continuous_token(v)
+        if kind in stats:
+            stats[kind] += 1
+        elif kind == "error":
+            stats["invalid"] += 1
+
+        if is_int_like(v):
+            stats["num_state"] += 1
+
+    total = max(1, stats["total"])
+    has_interval = stats["range"] > 0 or stats["slash"] > 0 or stats["pm"] > 0
+    cont_like = stats["single"] + stats["range"] + stats["slash"] + stats["pm"]
+    frac_cont_like = cont_like / total
+    frac_num_state = stats["num_state"] / total
+
+    if has_interval:
+        return "cont", stats
+
+    has_decimal_or_sci = any(("." in str(v) or "e" in str(v).lower()) for v in non_missing[:5000])
+    if frac_cont_like >= 0.85 and has_decimal_or_sci and frac_num_state < 0.95:
+        return "cont", stats
+
+    return "num", stats
+
+
+def validate_continuous_matrix(block: "DataBlock") -> List[Dict[str, Any]]:
+    """Report invalid/negative continuous cells by taxon and character."""
+    errors: List[Dict[str, Any]] = []
+    if block.dtype != "cont":
+        return errors
+
+    for taxon, row in block.rows_by_taxon.items():
+        for j, token in enumerate(row, start=1):
+            kind, value, reason = classify_tnt_continuous_token(token)
+            if kind == "error":
+                errors.append({
+                    "taxon": taxon,
+                    "char": j,
+                    "value": token,
+                    "reason": reason,
+                })
+    return errors
+
 # -------------------------
 # Data structures
 # -------------------------
@@ -239,16 +379,38 @@ class Parsers:
         if not data_rows:
             raise ValueError("No valid rows found in table.")
 
-        nchar_set = {len(r) for r in data_rows}
-        if len(nchar_set) != 1:
-            raise ValueError(f"Inconsistent number of columns across rows: {sorted(nchar_set)}")
-        nchar = nchar_set.pop()
+        # Robust row length normalization.
+        # Some text pasted/exported from spreadsheets contains accidental empty cells
+        # immediately after the taxon name or trailing empty columns. Infer the most
+        # common character count and normalize those rows when possible.
+        from collections import Counter
+        length_counts = Counter(len(r) for r in data_rows)
+        nchar = length_counts.most_common(1)[0][0]
+        normalized_rows: List[List[str]] = []
+        row_warnings: List[str] = []
+        for tax, row in zip(taxa_original, data_rows):
+            rr = list(row)
+            while len(rr) > nchar and rr and rr[0].strip() == "":
+                rr.pop(0)
+            while len(rr) > nchar and rr and rr[-1].strip() == "":
+                rr.pop()
+            if len(rr) < nchar:
+                rr = rr + ["?"] * (nchar - len(rr))
+                row_warnings.append(f"Row for {tax} had fewer columns; padded with ?.")
+            elif len(rr) > nchar:
+                raise ValueError(
+                    f"Inconsistent number of columns for taxon '{tax}': "
+                    f"expected {nchar}, got {len(rr)}. Check extra tabs/commas."
+                )
+            normalized_rows.append(rr)
+        data_rows = normalized_rows
 
         taxa_sanitized = [sanitize_taxon(t) for t in taxa_original]
         if len(set(taxa_sanitized)) != len(taxa_sanitized):
             raise ValueError("Table taxon names collide after sanitization. Please rename taxa.")
 
-        # Detect cont vs num
+        # Detect cont vs num, including direct TNT-compatible continuous formats:
+        # simple values, min-max ranges, mean/error with '/', and mean+/-error.
         non_missing: List[str] = []
         for r in data_rows:
             for v in r:
@@ -257,31 +419,29 @@ class Parsers:
 
         dtype = "num"
         warnings: List[str] = []
+        if 'row_warnings' in locals() and row_warnings:
+            warnings.extend(row_warnings[:5])
+            if len(row_warnings) > 5:
+                warnings.append(f"... {len(row_warnings) - 5} additional row-length warnings.")
 
+        cont_stats: Dict[str, int] = {}
         if non_missing:
-            float_ok = 0
-            has_decimal = False
-            has_nonint_float = False
-            for v in non_missing[:5000]:
-                fv = parse_float_safe(v)
-                if fv is not None:
-                    float_ok += 1
-                    if "." in v or "e" in v.lower():
-                        has_decimal = True
-                    if not is_int_like(v):
-                        has_nonint_float = True
-            frac_float = float_ok / max(1, len(non_missing))
-
-            if frac_float >= 0.85 and (has_decimal or has_nonint_float):
-                dtype = "cont"
-            else:
-                dtype = "num"
+            dtype, cont_stats = detect_table_dtype_from_cells(non_missing)
+            if dtype == "cont":
+                warnings.append(
+                    "Continuous table detected: "
+                    f"single={cont_stats.get('single', 0)}, "
+                    f"range={cont_stats.get('range', 0)}, "
+                    f"slash=/={cont_stats.get('slash', 0)}, "
+                    f"+/-={cont_stats.get('pm', 0)}, "
+                    f"invalid={cont_stats.get('invalid', 0)}."
+                )
 
         rows_by_taxon: Dict[str, Any] = {}
         for tax, row in zip(taxa_sanitized, data_rows):
             rows_by_taxon[tax] = row
 
-        return DataBlock(
+        block = DataBlock(
             source_path=path,
             name=name,
             dtype=dtype,
@@ -291,7 +451,19 @@ class Parsers:
             rows_by_taxon=rows_by_taxon,
             missing_symbol="?",
             warnings=warnings,
+            meta={"continuous_stats": cont_stats} if dtype == "cont" else {},
         )
+
+        if dtype == "cont":
+            cont_errors = validate_continuous_matrix(block)
+            block.meta["continuous_errors"] = cont_errors
+            if cont_errors:
+                block.warnings.append(
+                    f"Continuous block has {len(cont_errors)} invalid/negative values; "
+                    "see taxa report. Export will be blocked until corrected."
+                )
+
+        return block
 
     @staticmethod
     def parse_tps_2d(path: str, name: str) -> DataBlock:
@@ -515,11 +687,30 @@ class Project:
             return 32
         return 8
 
+    def get_all_continuous_errors(self) -> List[Dict[str, Any]]:
+        all_errors: List[Dict[str, Any]] = []
+        for b in self.blocks:
+            if b.dtype != "cont":
+                continue
+            for e in b.meta.get("continuous_errors", []):
+                all_errors.append({"block": b.name, "source": b.source_path, **e})
+        return all_errors
+
     def export_tnt(self, out_path: str, title: str = "Data saved from TNT"):
         if not self.blocks:
             raise ValueError("No blocks to export.")
         if not self.master_taxa:
             raise ValueError("Master taxa set is empty (check Union/Intersection).")
+
+        cont_errors = self.get_all_continuous_errors()
+        if cont_errors:
+            first = cont_errors[0]
+            raise ValueError(
+                f"Export blocked: {len(cont_errors)} invalid/negative continuous values found. "
+                f"First error: block={first.get('block')}, taxon={first.get('taxon')}, "
+                f"char={first.get('char')}, value={first.get('value')}. "
+                "Open 'Show taxa report...' and correct the input table."
+            )
 
         nstates = self.choose_nstates()
         ntax = len(self.master_taxa)
@@ -604,14 +795,7 @@ class Project:
         if block.dtype == "cont":
             out_tokens: List[str] = []
             for t in tokens:
-                if is_missing(t):
-                    out_tokens.append(block.missing_symbol)
-                else:
-                    fv = parse_float_safe(t)
-                    if fv is None or math.isnan(fv):
-                        out_tokens.append(block.missing_symbol)
-                    else:
-                        out_tokens.append(f"{fv:.{self.decimals}f}")
+                out_tokens.append(format_continuous_token_for_tnt(t, self.decimals))
             return " ".join(out_tokens)
 
         out_tokens = [(block.missing_symbol if is_missing(t) else t) for t in tokens]
@@ -866,6 +1050,18 @@ class TNTBuilderApp(tk.Tk if not HAS_DND else TkinterDnD.Tk):
             warns = r.get("warnings", [])
             for w in warns:
                 txt.insert("end", f"  Warning: {w}\n")
+
+            cont_errors = b.meta.get("continuous_errors", [])
+            if cont_errors:
+                txt.insert("end", f"  Continuous errors: {len(cont_errors)}\n")
+                for e in cont_errors[:100]:
+                    txt.insert(
+                        "end",
+                        f"    Taxon={e.get('taxon')} | Char={e.get('char')} | "
+                        f"Value='{e.get('value')}' | Reason={e.get('reason')}\n"
+                    )
+                if len(cont_errors) > 100:
+                    txt.insert("end", f"    ... {len(cont_errors) - 100} more errors\n")
             txt.insert("end", "\n")
 
         txt.config(state="disabled")
@@ -955,3 +1151,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
