@@ -2,6 +2,12 @@
 
 <div align="left">
   <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhEhENEvuyWLIKZ_QziPGKwxQOYWxh7bT8u2Y0v-MMvjORJ1wQHt_-8H6x7z7IGbjyuRCL5BFLjmV2DyJmmw6EFwjI08TH1jFl0G4WyMGmMpYq6qOBhVj5QSyDHNgqtHhnx7182Mg-T2lNjIXkTagXYdlHo4SE7yO2isrnGP3UM0fSt2MoPbSA3DN8LHk6k/w286-h236/Untitled.jpg" width="250" alt="TNT Matrix Builder Logo" style="border-radius: 8px; margin-bottom: 20px;" />
+
+**Developed by: Jonathan Liria**
+
+**Neotropical Cladistic Biogeography Computing Lab (NCBC-Lab)**  
+An academic initiative focused on developing high-performance computational tools for complex spatial analysis, biogeography, and systematic biology in the Neotropics.
+
  
   [![Python Version](https://img.shields.io/badge/python-3.x-blue.svg)](https://www.python.org/)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
