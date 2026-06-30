@@ -125,7 +125,7 @@ Before exporting, it is highly recommended to check the **"Show taxa report..."*
 
 ## 5. References
 
-* Catalano, S., Goloboff, P.A. (2018). *A guide for the analysis of continuous and landmark characters in TNT*.
+* Catalano, S., Goloboff, P.A. (2018). *A guide for the analysis of continuous and landmark characters in TNT*. 10.13140/RG.2.2.23797.27360. 
 * Goloboff, P.A., Morales, M.E. (2023). *TNT version 1.6, with a graphical interface for MacOS and Linux, including new routines in parallel.* Cladistics, 39: 144-153.
 * Liria, J., Soto-Vivas, A. (2025). *py_tps2tnt y py_tm2tnt: dos programas en Python para procesamiento de datos morfométricos en análisis cladísticos con TNT.* Revista Peruana de Biología, 32(2), e30018.
 * Maddison, W. P., D.R. Maddison. (2025). *Mesquite: a modular system for evolutionary analysis.* Version 4.02. https://www.mesquiteproject.org.
