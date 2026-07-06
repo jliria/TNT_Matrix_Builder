@@ -11,6 +11,7 @@ An academic initiative focused on developing high-performance computational tool
  
   [![Python Version](https://img.shields.io/badge/python-3.x-blue.svg)](https://www.python.org/)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  ![Status](https://img.shields.io/badge/status-active%20development-orange)
 </div>
 
 ---
